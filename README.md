@@ -1,1 +1,1 @@
-This repository contains various Python and SageMath tools used in creating a census of knotted 4-valent graphs. This includes using the Dowker-Thistletwaite algorithm for creating the graphs, and finding the polynomial invariant for each graph.
+This repository contains various Python and SageMath tools used in creating a census of knotted 4-valent graphs. This includes using the Dowker-Thistletwaite algorithm for creating the graphs, and finding a polynomial invariant for each graph, using a skein relation on graphs with an oriented Eulerian path on their edges.
