@@ -1,0 +1,8 @@
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# pycache
+Graphpoly/__pycache__
+
+# LaTeX files for images
+img/*.tex
