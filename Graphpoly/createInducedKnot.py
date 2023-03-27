@@ -114,8 +114,8 @@ def createInducedKnot(graph):
     # Get required information from graph class object
     
     num_node = graph.numNodes()     # Number of nodes in original graph
-    PD_code = graph.listPDCode()        # Planar diagram code for graph
-    circuit = graph.listEPath()         # Final Eulerian circuit through graph
+    PD_code = graph.listPDCode()    # Planar diagram code for graph
+    circuit = graph.listEPath()     # Final Eulerian circuit through graph
     
     # Create union-find data structure for half-edges
     
@@ -135,10 +135,6 @@ def createInducedKnot(graph):
     # all will appear as keys in the dictionary.
     
     nodeDict = {dart : node for node in range(num_node) for dart in PD_code[node]}
-    
-    # for iii in range(num_node):
-    #     for dart in PD_code[iii]:
-    #         nodeDict[dart] = iii
             
     # From given PD code make a dict, with node labels as keys, and the PD
     # code for that node as value

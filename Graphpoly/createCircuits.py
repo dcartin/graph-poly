@@ -138,8 +138,12 @@ class Graph:
         self.epath += [self.cpath[-1], self.cpath[-2]]
         self.cpath = self.cpath[:-2]
         
-        # Find node on other end of current_edge, other dart on same edge
+        # Find node on other end of current_edge, other dart on same edge.
+        # I have added a back_node variable here, to see which node has just
+        # been left behind. This will be checked later, to see if all four
+        # half-darts for this back node have been passed through on self.epath
         
+        self.back_node = self.current_node
         self.current_node = self.dart_dict[dart]
         self.current_dart = dart
         
@@ -323,6 +327,18 @@ class Graph:
         """
         Since the epath is 'backwards' compared to the original orientation,
         must reverse the PD code appropriately so that it matches e_path
+        
+        15 Jan 2023: Added code to remove nodes from PD code if the node is
+        (1) a vertex that is either (2a) made into a turn in the induced knot
+        diagram, or (2b) not, but needs to have its node type changed anyway.
+        Also, changed output PD code, so that it is in terms of edges (starting
+        at 1, instead of 0, since that is what Sage wants). This code is
+        currently commented out.
+        
+        19 Feb 2023: A global reverse of the PD code does not work in general,
+        since the generic Eulerian circuit may lead to different entering
+        lower darts for a given node. This depends on how the circuit changes
+        direction on portions of the graph, due to improper vertices.
         """
         
         # Put node 0 at beginning of epath
@@ -330,10 +346,36 @@ class Graph:
         zero = self.epath.index(0)
         self.epath = self.epath[zero:] + self.epath[:zero]
         
-        # Reverse PD code labels, node type signs
+        # Process PD code labels for each node, and see how they match the
+        # current Eulerian circuit.
         
-        self.PD_code = [[code[2], code[3], code[0], code[1]] for code in self.PD_code]
-        self.node_type_dict = {iii : -self.node_type_dict[iii] for iii in self.node_type_dict.keys()}
+        num_darts = 4 * self.num_node
+        new_PD_code = []
+        
+        for node in self.PD_code:
+            
+            # We will keep the current PD code node if it (1) is a proper node,
+            # or (2) an improper vertex with the current ingoing dart still an
+            # ingoing dart. Note that if the vertex is improper with *both*
+            # lower edges as ingoing, this will keep it as is. However, in this
+            # case, we will not care about the node type, so it is irrelevant.
+            # It will flip the PD code for the vertex if both lower edges are
+            # outgoing, but again, this does not matter.
+            
+            # NOTE: We could check the node type list within the if-else
+            # statements below, but I am not worrying about it now. Do we
+            # really need to, or is the absolute value of the node type
+            # sufficient for later work?
+            
+            first_label_index = self.epath.index(node[0])
+            next_label = self.epath[(first_label_index + 1) % num_darts]
+            
+            if next_label in node[1:]:
+                new_PD_code += [node]
+            else:
+                new_PD_code += [[node[2], node[3], node[0], node[1]]]
+                
+        self.PD_code = new_PD_code
     
     #-------------------------------------------------------------------------#
         
@@ -343,14 +385,15 @@ class Graph:
         order of the remaining darts; this flips the orientation of all edges.
         
         17 Jul 2022: Since we are using the PD code of the graph, we need to
-        reverse this as well. This takes (i j k l) -rev-> (k l i j). This flips
-        the sign of the f_list as well.
+        reverse this as well. This takes (i j k l) -rev-> (k l i j). The f_list
+        should *not* flip sign, since both upper and lower edges reverse
+        orientation.
         """
         
         self.epath = [self.epath[0]] + [label for label in self.epath[-1:0:-1]]
         
         self.PD_code = [[code[2], code[3], code[0], code[1]] for code in self.PD_code]
-        self.node_type_dict = {iii : -self.node_type_dict[iii] for iii in self.node_type_dict.keys()}
+        #self.node_type_dict = {iii : -self.node_type_dict[iii] for iii in self.node_type_dict.keys()}
         
 #=============================================================================#
 
@@ -380,12 +423,6 @@ def createCircuits(PD_list, type_list):
         
         # Print out edge_adj_dict, edge_dict
         
-        # print('===\n>>>dartAdjDict =', nextGraph.listDartAdjDict())
-        # print('dartDict =', nextGraph.listDartDict())
-        # print('nodeTypeDict =', nextGraph.listNodeTypeDict())
-        # print('currentNode =', nextGraph.listCurrentNode())
-        # print('currentDart =', nextGraph.listCurrentDart())
-        
         # If cpath is empty, graph is not placed back into graphStack on any
         # previous iteration, so safe to assume len(cpath) > 0; see if current
         # node has non-zero edges left
@@ -409,23 +446,14 @@ def createCircuits(PD_list, type_list):
             
             if nextGraph.lenCPath() > 0:
                 graphStack += [nextGraph]
-            # elif nextGraph.listEPath() not in graphList:
-                # graphList += [nextGraph.listEPath()]
             elif nextGraph not in graphList:
                 nextGraph.order()
                 graphList += [nextGraph]
-                # print(':::', nextGraph.listEPath())
                 
                 # Include reversed version of graph circuit
                 
                 revGraph = deepcopy(nextGraph)
-                
-                # print('>>>revGraph.listEPath():', revGraph.listEPath())
-                # print('>>>revGraph.PDCode():', revGraph.listPDCode())
-                
                 revGraph.reverseGraph()
-                # print('<<<revGraph.listEPath():', revGraph.listEPath())
-                # print('<<<revGraph.PDCode():', revGraph.listPDCode())
                 
                 graphList += [revGraph]
         
@@ -436,13 +464,10 @@ def createCircuits(PD_list, type_list):
             # new graph for each choice, add to stack
             
             nextList = nextGraph.listAvailableDarts()
-            # print('nextList = ', nextList)
             
             for nextDart in nextList:
-                # print('nextDart =', nextDart)
                 newGraph = deepcopy(nextGraph)
                 newGraph.chooseNextDart(nextDart)
-                # print('<<<dartAdjDict =', newGraph.listDartAdjDict())
                 graphStack += [newGraph]
             
     # Return results
@@ -450,17 +475,3 @@ def createCircuits(PD_list, type_list):
     return graphList
         
 #=============================================================================#
-
-# PD_code = [[0, 6, 1, 7], [2, 12, 3, 13], [10, 4, 11, 5], [14, 9, 15, 8]]
-# nodeTypeList = [2, 1, 1, -1]
-
-# result = createCircuits(PD_code, nodeTypeList)
-# epathList = [graph.listEPath() for graph in result]
-
-# # for circuit in sorted(epathList):
-# #     print(circuit)
-
-# for graph in result:
-#     print(graph.listEPath(), graph.listPDCode(), graph.listNodeTypeDict())
-
-# print(len(result))
